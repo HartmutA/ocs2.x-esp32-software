@@ -67,7 +67,7 @@
 
 //--- Axis configuration for autosquare ---
 //-- Axis 1 --
-#define AXIS1_ACTIVE false
+#define AXIS1_ACTIVE true
 #if AXIS1_ACTIVE
 #define AXIS1_MOTOR1 AXIS::x // Can be AXIS::x, AXIS::y, AXIS::z, AXIS::a, AXIS::b, AXIS::c
 #define AXIS1_MOTOR1_ENDSTOP_INPUT 1 // Can be a number between 1 and 10 for input 1-10
@@ -83,7 +83,7 @@
 #define AXIS1_REVERSE_MOTOR_DIRECTION false // Lets the motors rotate counter clockwise
 #endif
 //-- Axis 2 --
-#define AXIS2_ACTIVE false
+#define AXIS2_ACTIVE true
 #if AXIS2_ACTIVE
 #define AXIS2_MOTOR1 AXIS::y // Can be AXIS::x, AXIS::y, AXIS::z, AXIS::a, AXIS::b, AXIS::c
 #define AXIS2_MOTOR1_ENDSTOP_INPUT 3 // Can be a number between 1 and 10 for input 1-10
