@@ -16,9 +16,19 @@ void IOCONTROL::setup()
     pinMode(LED_BUILTIN, OUTPUT);
     digitalWrite(LED_BUILTIN, LOW);
 
+#if OCS2_VERSION >= 9
+    pinMode(CONTROLLER_DIR_BUFFER_ENABLE_PIN, OUTPUT);
+    digitalWrite(CONTROLLER_DIR_BUFFER_ENABLE_PIN, LOW);
+#endif
+#if OCS2_VERSION >= 10
+    pinMode(ESP32_DAC_ENABLE_PIN, OUTPUT);
+    digitalWrite(ESP32_DAC_ENABLE_PIN, LOW);
+#endif
+
     this->checkPCA9555();
 
 #if ESP_HANDWHEEL == true
+    this->enableDACOutputs();
     // DAC
     dac.begin(BU2506_LD_PIN);
     dac.resetOutputs();
@@ -39,6 +49,15 @@ void IOCONTROL::setup()
         1,                        /* priority of the task */
         &ioControlTaskHandle,     /* Task handle to keep track of created task */
         1);
+    // Create a task for writing all outputs
+    xTaskCreatePinnedToCore(
+        IOCONTROL::writeOutputsTask, /* Task function. */
+        "IO Task",                   /* name of task. */
+        10000,                       /* Stack size of task */
+        this,                        /* parameter of the task */
+        1,                           /* priority of the task */
+        &writeOutputsTaskHandle,     /* Task handle to keep track of created task */
+        1);                          // Has to be cpu 1because otherwi
     // Create a task for reading the PCA9555 inputs
     xTaskCreatePinnedToCore(
         IOCONTROL::ioPortTask, /* Task function. */
@@ -171,6 +190,22 @@ void IOCONTROL::initPCA9555()
 
 void IOCONTROL::loop()
 {
+}
+
+void IOCONTROL::writeOutputsTask(void *pvParameters)
+{
+    auto *ioControl = (IOCONTROL *)pvParameters;
+    for (;;)
+    {
+        // Write outputs if time is due
+        if (millis() - ioControl->lastOutputsWritten_MS > WRITE_OUPUTS_INTERVAL)
+        {
+            ioControl->writeDataBag(&dataToControl);
+            ioControl->lastOutputsWritten_MS = millis();
+        }
+
+        vTaskDelay(1);
+    }
 }
 
 void IOCONTROL::ioControlTask(void *pvParameters)
@@ -448,6 +483,12 @@ void IOCONTROL::setRotationSpeed(int value)
 
 void IOCONTROL::writeDataBag(DATA_TO_CONTROL *data)
 {
+    // Stop if the io is not initialized - mostly means, the mainboard has no power or is not connected
+    if (!this->IOInitialized)
+    {
+        return;
+    }
+
 #if ESP_HANDWHEEL == true
     if (data->command.setJoystick)
     {
@@ -485,11 +526,11 @@ void IOCONTROL::writeDataBag(DATA_TO_CONTROL *data)
     {
         setENA(data->ena);
     }
-    if(data->command.setSpeed1)
+    if (data->command.setSpeed1)
     {
         setSpeed1(data->speed1);
     }
-    if(data->command.setSpeed2)
+    if (data->command.setSpeed2)
     {
         setSpeed2(data->speed2);
     }
@@ -511,18 +552,6 @@ void IOCONTROL::writeDataBag(DATA_TO_CONTROL *data)
         setOut4(data->output4);
     }
 }
-#if ESP_HANDWHEEL == true
-void IOCONTROL::setAllIOsRandom()
-{
-    setAuswahlX(random(0, 1));
-    setAuswahlY(random(0, 1));
-    setAuswahlZ(random(0, 1));
-
-    setOK(random(0, 1));
-    setMotorStart(random(0, 1));
-    setProgrammStart(random(0, 1));
-}
-#endif // ESP_HANDWHEEL == true
 
 /**
  * @param number Number of the input. Possible values are 1-10.
@@ -641,6 +670,31 @@ void IOCONTROL::updateClientData()
     dataToClient.autosquareRunning = stepperControl.autosquareRunning;
     dataToClient.alarmState = this->getAlarmAll();
     dataToClient.spindelState = this->getSpindelOnOff();
+}
+
+void IOCONTROL::enableControllerDirBuffer()
+{
+#if OCS2_VERSION >= 9
+    digitalWrite(CONTROLLER_DIR_BUFFER_ENABLE_PIN, LOW);
+#endif
+}
+void IOCONTROL::disableControllerDirBuffer()
+{
+#if OCS2_VERSION >= 9
+    digitalWrite(CONTROLLER_DIR_BUFFER_ENABLE_PIN, HIGH);
+#endif
+}
+void IOCONTROL::enableDACOutputs()
+{
+#if OCS2_VERSION >= 10
+    digitalWrite(ESP32_DAC_ENABLE_PIN, HIGH);
+#endif
+}
+void IOCONTROL::disableDACOutputs()
+{
+#if OCS2_VERSION >= 10
+    digitalWrite(ESP32_DAC_ENABLE_PIN, LOW);
+#endif
 }
 
 IOCONTROL ioControl;

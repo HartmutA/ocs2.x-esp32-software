@@ -15,6 +15,8 @@
 #define TEMPERATURE_READ_INTERVAL_MS 10000
 #define CLIENT_DATA_UPDATE_INTERVAL_MS 5
 
+#define WRITE_OUPUTS_INTERVAL 20
+
 // DAC channel map
 #define DAC_JOYSTICK_X 3
 #define DAC_JOYSTICK_Y 4
@@ -132,9 +134,7 @@ public:
     void dacSetAllChannel(int value);
     void setFeedrate(int value);
     void setRotationSpeed(int value);
-    void setAllIOsRandom();
 #endif
-
 
     // general
     void writeDataBag(DATA_TO_CONTROL *data);
@@ -142,6 +142,15 @@ public:
     void resetInterrupts();
     void startBlinkRJ45LED();
     void stopBlinkRJ45LED();
+
+    // This lets the ControllerModule control the direction of the motors
+    void enableControllerDirBuffer();
+    // This stops the ControllerModule from controlling the direction of the motors - Used for Autosquaring
+    void disableControllerDirBuffer();
+
+    // Enable / disable the onboard DAC for the analog outputs from esp32 to the controller(when usign the ESP32 Handwheel)
+    void enableDACOutputs();
+    void disableDACOutputs();
 
     int getTemperature(byte number); // Number can be 0-4. 0 is the onboard sensor
 
@@ -151,8 +160,10 @@ private:
     // Task handler
     static void ioControlTask(void *pvParameters);
     static void ioPortTask(void *pvParameters);
+    static void writeOutputsTask(void *pvParameters);
     TaskHandle_t ioPortTaskHandle;
     TaskHandle_t ioControlTaskHandle;
+    TaskHandle_t writeOutputsTaskHandle;
 
     // Temp sensors
     int temperatures[5];
@@ -170,4 +181,5 @@ private:
     uint32_t lastI2CCheck = 0;
 
     uint32_t lastClientDataUpdate = 20000;
+    uint32_t lastOutputsWritten_MS = 20000;
 };
